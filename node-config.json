@@ -1,0 +1,6 @@
+{
+    "httpPort": 8081,
+    "switchbotToken": "",
+    "switchbotSecret": "",
+    "switchbotDeviceId": ""
+}
