@@ -1,0 +1,178 @@
+<html>
+  <head>
+    <style>
+      body {
+        margin: 0;
+        background: #000;
+      }
+      #cover {
+        background: #000;
+        color: #eee;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font: 30vh Arial;
+      }
+      #controls {
+        position: fixed;
+        top: 0;
+        left: 0;
+        display: flex;
+        width: 25%;
+        height: 100%;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+      }
+      #controls > div {
+        width: 100%;
+        height: 50%;
+        opacity: 0.5;
+        background-size: 8vw;
+        background-repeat: no-repeat;
+        background-position: center;
+      }
+      #controls > div.inactive {
+        opacity: 0.2;
+      }
+      #entryBtn {
+        background-image: url('icons/entry.png');
+      }
+      #garageBtn {
+        background-image: url('icons/garage.png');
+      }
+      #restart {
+        background-image: url('icons/restart.png');
+        background-size: contain;
+        width: 8vw;
+        height: 8vw;
+        position: fixed;
+        top: 5vh;
+        right: 2vw;
+        opacity: 0.5;
+      }
+      video {
+        width: 100%;
+      }
+      @media (orientation: portrait) {
+        #restart {
+          display: none;
+        }
+        #cover {
+          font-size: 10vh;
+        }
+        #controls {
+          position: unset;
+          display: flex;
+          width: 100%;
+          height: 20vh;
+          flex-direction: row;
+          justify-content: space-around;
+        }
+        #controls > div {
+          width: 10vh;
+          height: 10vh;
+          background-size: contain;
+        }
+      }
+    </style>
+  </head>
+  
+  <body>
+    <video id="video" autoplay muted></video>
+    <div id="controls">
+      <div id="entryBtn"></div>
+      <div id="garageBtn"></div>
+    </div>
+    <div id="cover">Loading</div>
+    <div id="restart"></div>
+
+    <script>
+      const streamPort = 8080;
+      const controlPort = 8081;
+
+      entryBtn.onclick = bot.bind(entryBtn, 'entry');
+      garageBtn.onclick = bot.bind(garageBtn, 'garage');
+      async function bot(action) {
+        this.classList.add('inactive');
+        await fetch('http://localhost:' + controlPort + '/bot/' + action, {
+          method: "POST",
+          mode: 'cors',
+          cache: "no-cache"
+        });
+        this.classList.remove('inactive');
+      }
+
+      restart.onclick = () => location.reload();
+
+      const video = document.getElementById('video');
+      const cover = document.getElementById('cover');
+
+      var streamingStarted = false;
+      var ms = new MediaSource();
+      var queue = [];
+
+      function pushPacket(data) {
+        if (!streamingStarted) {
+          sourceBuffer.appendBuffer(data);
+          streamingStarted = true;
+          return;
+        }
+        queue.push(data);
+        if (!sourceBuffer.updating) {
+          loadPacket();
+        }
+      }
+
+      function loadPacket() {
+        if (!sourceBuffer.updating) {
+          if (queue.length > 0) {
+            const input = queue.shift();
+            sourceBuffer.appendBuffer(input);
+          } else {
+            streamingStarted = false;
+          }
+        }
+      }
+
+      ms.onsourceopen = function() {
+        const ws = new WebSocket('ws://localhost:' + streamPort + '/ws/stream?suuid=H264');
+        ws.binaryType = "arraybuffer";
+        ws.onopen = () => {
+          cover.style.display = 'none';
+        };
+        ws.onerror = () => {
+          cover.innerHTML = 'Offline';
+        };
+        ws.onmessage = function(event) {
+          var data = new Uint8Array(event.data);
+          if (data[0] == 9) {
+            const codecEncoded = data.slice(1);
+            const mimeCodec = new TextDecoder("utf-8").decode(codecEncoded);
+            console.log('Codec: ' + mimeCodec);
+            sourceBuffer = ms.addSourceBuffer('video/mp4; codecs="' + mimeCodec + '"');
+            sourceBuffer.mode = "segments";
+            sourceBuffer.addEventListener("updateend", loadPacket);
+          } else {
+            pushPacket(event.data);
+          }
+          if (document.hidden && video.buffered.length) {
+            //fix pause on hidden tabs
+            video.currentTime = video.buffered.end((video.buffered.length - 1)) - 1;
+          }
+        };
+      }
+
+      function start() {
+        video.src = URL.createObjectURL(ms);
+      }
+
+      start();
+    </script>
+  </body>
+</html>

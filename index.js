@@ -26,7 +26,21 @@ const actionMap = {
     garage: 'turnOff'
 }
 
-app.post(`/bot/:action`, async (req, res) => {
+app.route(`/bot/:action`)
+    .all((req, res, next) => {
+        res.set({
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization, x-access-token",
+            "Access-Control-Expose-Headers": "Content-Length, Access-Control-Allow-Origin, Access-Control-Allow-Headers, Cache-Control, Content-Language, Content-Type",
+            "Access-Control-Allow-Methods": "POST, OPTIONS, GET, PUT"
+        });
+        if(req.method == 'OPTIONS')
+            res.sendStatus(204);
+        else
+            next();
+    })
+    .post(async (req, res) => {
         const cmd = actionMap[req.params.action];
         console.log('Bot action ' + cmd);
         if(!cmd) {
