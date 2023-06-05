@@ -18,7 +18,7 @@ func serveHTTP() {
 		handler.ServeHTTP(c.Writer, c.Request)
 	})
 	router.Static("/web", "./web")
-	router.StaticFile("/favicon.ico", "./web/favicon.ico")
+	router.StaticFile("/favicon.ico", "./web/icons/favicon.ico")
 	err := router.Run(Config.Server.HTTPPort)
 	if err != nil {
 		log.Fatalln("Start HTTP Server error", err)
