@@ -3,7 +3,6 @@ package main
 import (
 	"log"
 	"time"
-	"net/http"
 
 	"github.com/deepch/vdk/av"
 	"github.com/deepch/vdk/format/mp4f"
@@ -18,7 +17,8 @@ func serveHTTP() {
 		handler := websocket.Handler(ws)
 		handler.ServeHTTP(c.Writer, c.Request)
 	})
-	router.StaticFS("/web", http.Dir("web"))
+	router.Static("/web", "./web")
+	router.StaticFile("/favicon.ico", "./web/favicon.ico")
 	err := router.Run(Config.Server.HTTPPort)
 	if err != nil {
 		log.Fatalln("Start HTTP Server error", err)
